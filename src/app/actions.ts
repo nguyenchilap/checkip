@@ -127,3 +127,110 @@ export async function addCommonNote(note: string) {
   }
   return { success: true }
 }
+
+export type FilterResult = {
+  ip: string
+  originalLine: string
+  status: 'Sạch' | 'Trùng' | 'Lỗi'
+}
+
+export async function filterIps(lines: string[]): Promise<FilterResult[]> {
+  const results: FilterResult[] = []
+  
+  // Extract IPs anywhere in the string
+  const ipRegex = /\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b/
+  
+  const chunks = []
+  const chunkSize = 10
+  for (let i = 0; i < lines.length; i += chunkSize) {
+    chunks.push(lines.slice(i, i + chunkSize))
+  }
+
+  for (const chunk of chunks) {
+    const chunkPromises = chunk.map(async (line) => {
+      const trimmed = line.trim()
+      if (!trimmed) return null
+      
+      const match = trimmed.match(ipRegex)
+      if (!match) {
+        return { ip: '', originalLine: trimmed, status: 'Lỗi' as const }
+      }
+      const ip = match[0]
+      const st = await checkSmsbetApi(ip)
+      
+      let status: 'Sạch' | 'Trùng' | 'Lỗi' = 'Lỗi'
+      if (st === 'Sạch') status = 'Sạch'
+      else if (st === 'Trùng') status = 'Trùng'
+      
+      return { ip, originalLine: trimmed, status }
+    })
+    
+    const chunkRes = await Promise.all(chunkPromises)
+    results.push(...chunkRes.filter(Boolean) as FilterResult[])
+  }
+  
+  return results
+}
+
+export type Job = {
+  id: string;
+  name: string;
+  links: string;
+  created_at: string;
+}
+
+export async function getJobs(): Promise<Job[]> {
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Error fetching jobs:', error)
+    return []
+  }
+  return data as Job[]
+}
+
+export async function addJob(name: string, links: string) {
+  if (!name.trim() || !links.trim()) {
+    return { success: false, message: 'Tên và Links không được để trống' }
+  }
+  
+  const { error } = await supabase
+    .from('jobs')
+    .insert({ name: name.trim(), links: links.trim() })
+
+  if (error) {
+    return { success: false, message: 'Lỗi thêm Kèo: ' + error.message }
+  }
+  return { success: true }
+}
+
+export async function deleteJob(id: string) {
+  const { error } = await supabase
+    .from('jobs')
+    .delete()
+    .eq('id', id)
+    
+  if (error) {
+    return { success: false, message: 'Lỗi xóa Kèo: ' + error.message }
+  }
+  return { success: true }
+}
+
+export async function updateJob(id: string, links: string) {
+  if (!links.trim()) {
+    return { success: false, message: 'Links không được để trống' }
+  }
+  
+  const { error } = await supabase
+    .from('jobs')
+    .update({ links: links.trim() })
+    .eq('id', id)
+
+  if (error) {
+    return { success: false, message: 'Lỗi cập nhật Kèo: ' + error.message }
+  }
+  return { success: true }
+}
