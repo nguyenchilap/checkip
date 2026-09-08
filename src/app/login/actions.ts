@@ -7,15 +7,15 @@ export async function login(prevState: { error?: string } | null | undefined, fo
   const username = formData.get('username')
   const password = formData.get('password')
 
-  if (username === 'admin' && password === 'bukeo12312345') {
+  if (username === 'bn' && password === '1') {
     const cookieStore = await cookies()
     cookieStore.set('auth_session', 'authenticated', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24 * 7, // 1 week
+      maxAge: 60 * 60 * 24 * 30, // 1 month
       path: '/',
     })
-    
+
     redirect('/')
   } else {
     return { error: 'Tài khoản hoặc mật khẩu không chính xác' }
