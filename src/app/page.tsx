@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { submitNote, getCommonNotes, addCommonNote, filterIps, FilterResult, getJobs, addJob, deleteJob, updateJob, Job } from './actions'
-import { Search, Plus, Terminal, Settings2, Calendar, ShieldAlert, CheckCircle2 } from 'lucide-react'
+import { submitNote, getCommonNotes, addCommonNote, filterIps, FilterResult, getJobs, addJob, deleteJob, updateJob, Job, updateIpNote, getRecentIps } from './actions'
+import { Search, Plus, Terminal, Settings2, Calendar, ShieldAlert, CheckCircle2, Edit2, Menu, X, RefreshCw } from 'lucide-react'
 
 type Result = {
   success: boolean;
@@ -11,11 +11,18 @@ type Result = {
   addedTime?: string;
   allNotes?: string;
   smsbetStatus?: string;
+  ip?: string;
 } | null
 
 type CommonNote = {
   note: string;
   created_at?: string;
+}
+
+type RecentIp = {
+  ip: string;
+  notes: string;
+  added_time: string;
 }
 
 export default function Home() {
@@ -24,6 +31,16 @@ export default function Home() {
   const [mode, setMode] = useState<'classic' | 'advance'>('classic')
   const [result, setResult] = useState<Result>(null)
   const [pending, setPending] = useState(false)
+  
+  // Edit note state
+  const [isEditingNote, setIsEditingNote] = useState(false)
+  const [editNoteText, setEditNoteText] = useState('')
+  const [editNotePending, setEditNotePending] = useState(false)
+
+  // Drawer state
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [recentIps, setRecentIps] = useState<RecentIp[]>([])
+  const [loadingRecent, setLoadingRecent] = useState(false)
 
   // Filter tab state
   const [filterInput, setFilterInput] = useState('')
@@ -61,6 +78,13 @@ export default function Home() {
       getJobs().then(setJobs)
     }
   }, [mainTab])
+
+  const fetchRecent = async () => {
+    setLoadingRecent(true)
+    const ips = await getRecentIps()
+    setRecentIps(ips || [])
+    setLoadingRecent(false)
+  }
 
   useEffect(() => {
     const loadLocalData = () => {
@@ -138,6 +162,7 @@ export default function Home() {
   const handleClassicSubmit = async () => {
     setPending(true)
     setResult(null)
+    setIsEditingNote(false)
 
     // Split by first space
     const firstSpaceIndex = classicInput.trim().indexOf(' ')
@@ -161,6 +186,7 @@ export default function Home() {
   const handleAdvanceSubmit = async () => {
     setPending(true)
     setResult(null)
+    setIsEditingNote(false)
 
     const res = await submitNote(advIp, advNote)
     setResult(res)
@@ -168,6 +194,19 @@ export default function Home() {
       setAdvIp('')
     }
     setPending(false)
+  }
+
+  const handleSaveNote = async () => {
+    if (!result?.ip) return
+    setEditNotePending(true)
+    const res = await updateIpNote(result.ip, editNoteText)
+    if (res.success) {
+      setResult({ ...result, allNotes: editNoteText })
+      setIsEditingNote(false)
+    } else {
+      alert(res.message)
+    }
+    setEditNotePending(false)
   }
 
   const handleAddCommonNote = async () => {
@@ -196,6 +235,15 @@ export default function Home() {
               IP Note Manager
             </h1>
           </div>
+          <button
+            onClick={() => {
+              setIsDrawerOpen(true);
+              fetchRecent();
+            }}
+            className="p-2 -mr-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
         </div>
       </header>
 
@@ -301,12 +349,54 @@ export default function Home() {
                     </span>
                   </div>
                 )}
-                {result.allNotes && (
+                {result.allNotes !== undefined && (
                   <div className="mt-3 text-sm">
-                    <span className="font-semibold text-gray-700 dark:text-gray-300">Đã note: </span>
-                    <span className="text-gray-600 dark:text-gray-400 break-all bg-white/50 dark:bg-black/20 px-2 py-0.5 rounded border border-gray-200 dark:border-gray-700/50">
-                      {result.allNotes}
-                    </span>
+                    <div className="flex items-start">
+                      <span className="font-semibold text-gray-700 dark:text-gray-300 mt-1 mr-2">Đã note:</span>
+                      {isEditingNote ? (
+                        <div className="flex-1 flex flex-col space-y-2">
+                          <textarea
+                            className="w-full px-3 py-2 rounded-lg border border-blue-300 dark:border-blue-700 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 outline-none text-sm font-mono resize-y min-h-[60px]"
+                            value={editNoteText}
+                            onChange={(e) => setEditNoteText(e.target.value)}
+                          />
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={handleSaveNote}
+                              disabled={editNotePending}
+                              className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-xs font-medium hover:bg-blue-700 disabled:opacity-70 transition-colors cursor-pointer"
+                            >
+                              {editNotePending ? 'Đang lưu...' : 'Lưu'}
+                            </button>
+                            <button
+                              onClick={() => setIsEditingNote(false)}
+                              disabled={editNotePending}
+                              className="px-3 py-1.5 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-md text-xs font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors cursor-pointer"
+                            >
+                              Hủy
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex-1 flex items-center flex-wrap gap-2">
+                          <span className="text-gray-600 dark:text-gray-400 break-all bg-white/50 dark:bg-black/20 px-2 py-1 rounded border border-gray-200 dark:border-gray-700/50">
+                            {result.allNotes || '(Trống)'}
+                          </span>
+                          {result.ip && (
+                            <button
+                              onClick={() => {
+                                setEditNoteText(result.allNotes || '');
+                                setIsEditingNote(true);
+                              }}
+                              className="text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                              title="Chỉnh sửa ghi chú"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
                 {result.addedTime && (
@@ -716,6 +806,59 @@ export default function Home() {
         )}
 
       </main>
+
+      {/* Overlay */}
+      {isDrawerOpen && (
+        <div 
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-opacity"
+          onClick={() => setIsDrawerOpen(false)}
+        />
+      )}
+
+      {/* Drawer */}
+      <div 
+        className={`fixed inset-y-0 right-0 w-80 bg-white dark:bg-gray-800 shadow-xl z-50 transform transition-transform duration-300 ease-in-out border-l border-gray-200 dark:border-gray-700 flex flex-col ${
+          isDrawerOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <div className="px-4 h-16 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 shrink-0">
+          <h2 className="font-semibold text-lg text-gray-900 dark:text-white">IP Gần Đây</h2>
+          <div className="flex items-center space-x-1">
+            <button 
+              onClick={fetchRecent}
+              disabled={loadingRecent}
+              className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer disabled:opacity-50"
+              title="Tải lại"
+            >
+              <RefreshCw className={`w-4 h-4 ${loadingRecent ? 'animate-spin' : ''}`} />
+            </button>
+            <button 
+              onClick={() => setIsDrawerOpen(false)}
+              className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/50 dark:bg-gray-900/50">
+          {recentIps.map((item) => (
+            <div key={item.ip} className="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-start mb-1.5 gap-2">
+                <span className="font-mono text-sm font-bold text-blue-600 dark:text-blue-400 break-all">{item.ip}</span>
+                <span className="text-[10px] text-gray-500 dark:text-gray-400 whitespace-nowrap bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
+                  {new Date(item.added_time).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
+                </span>
+              </div>
+              <p className="text-xs text-gray-700 dark:text-gray-300 break-words">{item.notes}</p>
+            </div>
+          ))}
+          {recentIps.length === 0 && !loadingRecent && (
+            <div className="text-center py-8">
+              <p className="text-sm text-gray-500 dark:text-gray-400">Chưa có IP nào.</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

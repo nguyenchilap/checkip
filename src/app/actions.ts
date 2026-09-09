@@ -15,7 +15,7 @@ async function checkSmsbetApi(ip: string): Promise<string> {
     if (!res.ok) return 'Lỗi kết nối'
     const data = await res.json()
     const st = String(data.status || '').toLowerCase().trim()
-    
+
     if (['exists', 'exist', 'found'].includes(st)) return 'Trùng'
     if (['not_exists', 'notexist', 'missing', 'not_found'].includes(st)) return 'Sạch'
     return `Lỗi (${st})`
@@ -53,32 +53,35 @@ export async function submitNote(ip: string, note: string) {
     const noteExists = currentNotes.includes(note.trim())
 
     if (noteExists) {
-      return { 
-        success: true, 
-        message: `IP ${ip} đã sử dụng ghi chú "${note.trim()}".`, 
+      return {
+        success: true,
+        message: `IP ${ip} đã sử dụng ghi chú "${note.trim()}".`,
         isDuplicate: true,
         addedTime: existingIp.added_time,
         allNotes: existingIp.notes,
-        smsbetStatus
+        smsbetStatus,
+        ip
       }
     } else {
       const newNotesString = existingIp.notes ? `${existingIp.notes} | ${note.trim()}` : note.trim()
+      const now = new Date().toISOString()
       const { error: updateError } = await supabase
         .from('ips')
-        .update({ notes: newNotesString })
+        .update({ notes: newNotesString, added_time: now })
         .eq('ip', ip)
 
       if (updateError) {
         return { success: false, message: 'Lỗi cập nhật CSDL: ' + updateError.message }
       }
 
-      return { 
-        success: true, 
-        message: `Đã thêm ghi chú "${note.trim()}" vào IP ${ip} (đã tồn tại).`,
+      return {
+        success: true,
+        message: `Đã thêm ghi chú "${note.trim()}" vào IP ${ip}.`,
         isDuplicate: false,
-        addedTime: existingIp.added_time,
+        addedTime: now,
         allNotes: newNotesString,
-        smsbetStatus
+        smsbetStatus,
+        ip
       }
     }
   } else {
@@ -92,15 +95,33 @@ export async function submitNote(ip: string, note: string) {
       return { success: false, message: 'Lỗi thêm mới CSDL: ' + insertError.message }
     }
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       message: `Đã tạo IP mới ${ip} với ghi chú "${note.trim()}".`,
       isDuplicate: false,
       addedTime: now,
       allNotes: note.trim(),
-      smsbetStatus
+      smsbetStatus,
+      ip
     }
   }
+}
+
+export async function updateIpNote(ip: string, notes: string) {
+  if (!notes.trim()) {
+    return { success: false, message: 'Ghi chú không được để trống' }
+  }
+
+  const { error } = await supabase
+    .from('ips')
+    .update({ notes: notes.trim(), added_time: new Date().toISOString() })
+    .eq('ip', ip)
+
+  if (error) {
+    return { success: false, message: 'Lỗi cập nhật CSDL: ' + error.message }
+  }
+
+  return { success: true }
 }
 
 export async function getCommonNotes() {
@@ -108,9 +129,23 @@ export async function getCommonNotes() {
     .from('common_notes')
     .select('*')
     .order('created_at', { ascending: true })
-    
+
   if (error) {
     console.error("Lỗi lấy danh sách ghi chú thường dùng", error)
+    return []
+  }
+  return data
+}
+
+export async function getRecentIps() {
+  const { data, error } = await supabase
+    .from('ips')
+    .select('*')
+    .order('added_time', { ascending: false })
+    .limit(50)
+
+  if (error) {
+    console.error("Lỗi lấy danh sách IP gần đây", error)
     return []
   }
   return data
@@ -136,10 +171,10 @@ export type FilterResult = {
 
 export async function filterIps(lines: string[]): Promise<FilterResult[]> {
   const results: FilterResult[] = []
-  
+
   // Extract IPs anywhere in the string
   const ipRegex = /\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b/
-  
+
   const chunks = []
   const chunkSize = 10
   for (let i = 0; i < lines.length; i += chunkSize) {
@@ -150,25 +185,25 @@ export async function filterIps(lines: string[]): Promise<FilterResult[]> {
     const chunkPromises = chunk.map(async (line) => {
       const trimmed = line.trim()
       if (!trimmed) return null
-      
+
       const match = trimmed.match(ipRegex)
       if (!match) {
         return { ip: '', originalLine: trimmed, status: 'Lỗi' as const }
       }
       const ip = match[0]
       const st = await checkSmsbetApi(ip)
-      
+
       let status: 'Sạch' | 'Trùng' | 'Lỗi' = 'Lỗi'
       if (st === 'Sạch') status = 'Sạch'
       else if (st === 'Trùng') status = 'Trùng'
-      
+
       return { ip, originalLine: trimmed, status }
     })
-    
+
     const chunkRes = await Promise.all(chunkPromises)
     results.push(...chunkRes.filter(Boolean) as FilterResult[])
   }
-  
+
   return results
 }
 
@@ -196,7 +231,7 @@ export async function addJob(name: string, links: string) {
   if (!name.trim() || !links.trim()) {
     return { success: false, message: 'Tên và Links không được để trống' }
   }
-  
+
   const { error } = await supabase
     .from('jobs')
     .insert({ name: name.trim(), links: links.trim() })
@@ -212,7 +247,7 @@ export async function deleteJob(id: string) {
     .from('jobs')
     .delete()
     .eq('id', id)
-    
+
   if (error) {
     return { success: false, message: 'Lỗi xóa Kèo: ' + error.message }
   }
@@ -223,7 +258,7 @@ export async function updateJob(id: string, links: string) {
   if (!links.trim()) {
     return { success: false, message: 'Links không được để trống' }
   }
-  
+
   const { error } = await supabase
     .from('jobs')
     .update({ links: links.trim() })
