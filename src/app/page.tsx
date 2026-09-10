@@ -9,6 +9,7 @@ type Result = {
   message: string;
   isDuplicate?: boolean;
   addedTime?: string;
+  updatedTime?: string;
   allNotes?: string;
   smsbetStatus?: string;
   ip?: string;
@@ -23,6 +24,7 @@ type RecentIp = {
   ip: string;
   notes: string;
   added_time: string;
+  updated_time: string;
 }
 
 export default function Home() {
@@ -400,10 +402,18 @@ export default function Home() {
                   </div>
                 )}
                 {result.addedTime && (
-                  <p className="text-sm mt-1 flex items-center text-gray-600 dark:text-gray-400">
-                    <Calendar className="w-3.5 h-3.5 mr-1" />
-                    Đã thêm vào hệ thống từ: {new Date(result.addedTime).toLocaleString('vi-VN')}
-                  </p>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-sm flex items-center text-gray-600 dark:text-gray-400">
+                      <Calendar className="w-3.5 h-3.5 mr-1" />
+                      Ngày thêm: {new Date(result.addedTime).toLocaleString('vi-VN')}
+                    </p>
+                    {result.updatedTime && (
+                      <p className="text-sm flex items-center text-gray-600 dark:text-gray-400">
+                        <Calendar className="w-3.5 h-3.5 mr-1" />
+                        Ngày cập nhật gần nhất: {new Date(result.updatedTime).toLocaleString('vi-VN')}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -846,7 +856,7 @@ export default function Home() {
               <div className="flex justify-between items-start mb-1.5 gap-2">
                 <span className="font-mono text-sm font-bold text-blue-600 dark:text-blue-400 break-all">{item.ip}</span>
                 <span className="text-[10px] text-gray-500 dark:text-gray-400 whitespace-nowrap bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
-                  {new Date(item.added_time).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
+                  {new Date(item.updated_time || item.added_time).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
                 </span>
               </div>
               <p className="text-xs text-gray-700 dark:text-gray-300 break-words">{item.notes}</p>

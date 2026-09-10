@@ -58,6 +58,7 @@ export async function submitNote(ip: string, note: string) {
         message: `IP ${ip} đã sử dụng ghi chú "${note.trim()}".`,
         isDuplicate: true,
         addedTime: existingIp.added_time,
+        updatedTime: existingIp.updated_time || existingIp.added_time,
         allNotes: existingIp.notes,
         smsbetStatus,
         ip
@@ -67,7 +68,7 @@ export async function submitNote(ip: string, note: string) {
       const now = new Date().toISOString()
       const { error: updateError } = await supabase
         .from('ips')
-        .update({ notes: newNotesString, added_time: now })
+        .update({ notes: newNotesString, updated_time: now })
         .eq('ip', ip)
 
       if (updateError) {
@@ -78,7 +79,8 @@ export async function submitNote(ip: string, note: string) {
         success: true,
         message: `Đã thêm ghi chú "${note.trim()}" vào IP ${ip}.`,
         isDuplicate: false,
-        addedTime: now,
+        addedTime: existingIp.added_time,
+        updatedTime: now,
         allNotes: newNotesString,
         smsbetStatus,
         ip
@@ -89,7 +91,7 @@ export async function submitNote(ip: string, note: string) {
     const now = new Date().toISOString()
     const { error: insertError } = await supabase
       .from('ips')
-      .insert({ ip: ip, notes: note.trim(), added_time: now })
+      .insert({ ip: ip, notes: note.trim(), added_time: now, updated_time: now })
 
     if (insertError) {
       return { success: false, message: 'Lỗi thêm mới CSDL: ' + insertError.message }
@@ -100,6 +102,7 @@ export async function submitNote(ip: string, note: string) {
       message: `Đã tạo IP mới ${ip} với ghi chú "${note.trim()}".`,
       isDuplicate: false,
       addedTime: now,
+      updatedTime: now,
       allNotes: note.trim(),
       smsbetStatus,
       ip
@@ -114,7 +117,7 @@ export async function updateIpNote(ip: string, notes: string) {
 
   const { error } = await supabase
     .from('ips')
-    .update({ notes: notes.trim(), added_time: new Date().toISOString() })
+    .update({ notes: notes.trim(), updated_time: new Date().toISOString() })
     .eq('ip', ip)
 
   if (error) {
@@ -141,7 +144,7 @@ export async function getRecentIps() {
   const { data, error } = await supabase
     .from('ips')
     .select('*')
-    .order('added_time', { ascending: false })
+    .order('updated_time', { ascending: false })
     .limit(50)
 
   if (error) {
