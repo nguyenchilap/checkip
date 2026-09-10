@@ -12,6 +12,7 @@ type Result = {
   updatedTime?: string;
   allNotes?: string;
   smsbetStatus?: string;
+  smsbetDateAdded?: string;
   ip?: string;
 } | null
 
@@ -349,6 +350,11 @@ export default function Home() {
                       }`}>
                       {result.smsbetStatus}
                     </span>
+                    {result.smsbetDateAdded && (
+                      <span className="ml-2 text-gray-600 dark:text-gray-400">
+                        (Ngày thêm vào SMSBET: {result.smsbetDateAdded})
+                      </span>
+                    )}
                   </div>
                 )}
                 {result.allNotes !== undefined && (

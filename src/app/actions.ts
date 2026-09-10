@@ -2,7 +2,7 @@
 
 import { supabase } from '@/lib/supabase'
 
-async function checkSmsbetApi(ip: string): Promise<string> {
+async function checkSmsbetApi(ip: string): Promise<{ status: string, dateAdded?: string }> {
   try {
     const res = await fetch(`https://bet.smsbet.top/check_ip.php?ip=${ip}`, {
       headers: {
@@ -12,15 +12,17 @@ async function checkSmsbetApi(ip: string): Promise<string> {
       },
       cache: 'no-store'
     })
-    if (!res.ok) return 'Lỗi kết nối'
+    if (!res.ok) return { status: 'Lỗi kết nối' }
     const data = await res.json()
     const st = String(data.status || '').toLowerCase().trim()
 
-    if (['exists', 'exist', 'found'].includes(st)) return 'Trùng'
-    if (['not_exists', 'notexist', 'missing', 'not_found'].includes(st)) return 'Sạch'
-    return `Lỗi (${st})`
+    let status = `Lỗi (${st})`
+    if (['exists', 'exist', 'found'].includes(st)) status = 'Trùng'
+    else if (['not_exists', 'notexist', 'missing', 'not_found'].includes(st)) status = 'Sạch'
+
+    return { status, dateAdded: data.date_added }
   } catch (err) {
-    return 'Lỗi ngoại lệ'
+    return { status: 'Lỗi ngoại lệ' }
   }
 }
 
@@ -46,7 +48,7 @@ export async function submitNote(ip: string, note: string) {
     return { success: false, message: 'Lỗi khi kiểm tra CSDL: ' + fetchError.message }
   }
 
-  const smsbetStatus = await checkSmsbetApi(ip)
+  const { status: smsbetStatus, dateAdded: smsbetDateAdded } = await checkSmsbetApi(ip)
 
   if (existingIp) {
     const currentNotes = existingIp.notes ? existingIp.notes.split(' | ').map((n: string) => n.trim()) : []
@@ -61,6 +63,7 @@ export async function submitNote(ip: string, note: string) {
         updatedTime: existingIp.updated_time || existingIp.added_time,
         allNotes: existingIp.notes,
         smsbetStatus,
+        smsbetDateAdded,
         ip
       }
     } else {
@@ -83,6 +86,7 @@ export async function submitNote(ip: string, note: string) {
         updatedTime: now,
         allNotes: newNotesString,
         smsbetStatus,
+        smsbetDateAdded,
         ip
       }
     }
@@ -105,6 +109,7 @@ export async function submitNote(ip: string, note: string) {
       updatedTime: now,
       allNotes: note.trim(),
       smsbetStatus,
+      smsbetDateAdded,
       ip
     }
   }
@@ -194,7 +199,7 @@ export async function filterIps(lines: string[]): Promise<FilterResult[]> {
         return { ip: '', originalLine: trimmed, status: 'Lỗi' as const }
       }
       const ip = match[0]
-      const st = await checkSmsbetApi(ip)
+      const { status: st } = await checkSmsbetApi(ip)
 
       let status: 'Sạch' | 'Trùng' | 'Lỗi' = 'Lỗi'
       if (st === 'Sạch') status = 'Sạch'
