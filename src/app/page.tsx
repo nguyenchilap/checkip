@@ -34,11 +34,14 @@ export default function Home() {
   const [mode, setMode] = useState<'classic' | 'advance'>('classic')
   const [result, setResult] = useState<Result>(null)
   const [pending, setPending] = useState(false)
-  
+
   // Edit note state
   const [isEditingNote, setIsEditingNote] = useState(false)
   const [editNoteText, setEditNoteText] = useState('')
   const [editNotePending, setEditNotePending] = useState(false)
+
+  // Local storage loaded state
+  const [isLoaded, setIsLoaded] = useState(false)
 
   // Drawer state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -57,6 +60,9 @@ export default function Home() {
   const [jobPending, setJobPending] = useState(false)
   const [editingJobId, setEditingJobId] = useState<string | null>(null)
   const [editingLinks, setEditingLinks] = useState('')
+
+  // Selected Jobs state
+  const [selectedJobs, setSelectedJobs] = useState<string[]>([])
 
   // Classic mode state
   const [classicInput, setClassicInput] = useState('')
@@ -77,9 +83,7 @@ export default function Home() {
   }, [mode])
 
   useEffect(() => {
-    if (mainTab === 'job') {
-      getJobs().then(setJobs)
-    }
+    getJobs().then(setJobs)
   }, [mainTab])
 
   const fetchRecent = async () => {
@@ -93,23 +97,41 @@ export default function Home() {
     const loadLocalData = () => {
       const savedInput = localStorage.getItem('filterInput')
       const savedResults = localStorage.getItem('filterResults')
+      const savedSelectedJobs = localStorage.getItem('selectedJobs')
+
       if (savedInput) setFilterInput(savedInput)
       if (savedResults) {
         try {
           setFilterResults(JSON.parse(savedResults))
-        } catch (e) {}
+        } catch (e) { }
       }
+      if (savedSelectedJobs) {
+        try {
+          setSelectedJobs(JSON.parse(savedSelectedJobs))
+        } catch (e) { }
+      }
+      setIsLoaded(true)
     }
     loadLocalData()
   }, [])
 
   useEffect(() => {
-    localStorage.setItem('filterInput', filterInput)
-  }, [filterInput])
+    if (isLoaded) {
+      localStorage.setItem('filterInput', filterInput)
+    }
+  }, [filterInput, isLoaded])
 
   useEffect(() => {
-    localStorage.setItem('filterResults', JSON.stringify(filterResults))
-  }, [filterResults])
+    if (isLoaded) {
+      localStorage.setItem('filterResults', JSON.stringify(filterResults))
+    }
+  }, [filterResults, isLoaded])
+
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem('selectedJobs', JSON.stringify(selectedJobs))
+    }
+  }, [selectedJobs, isLoaded])
 
   const handleClearFilter = () => {
     setFilterInput('')
@@ -256,31 +278,28 @@ export default function Home() {
           <div className="flex space-x-8">
             <button
               onClick={() => setMainTab('home')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                mainTab === 'home'
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${mainTab === 'home'
                   ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
+                }`}
             >
               Quản lý Note
             </button>
             <button
               onClick={() => setMainTab('filter')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                mainTab === 'filter'
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${mainTab === 'filter'
                   ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
+                }`}
             >
               Lọc IP Hàng Loạt
             </button>
             <button
               onClick={() => setMainTab('job')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                mainTab === 'job'
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${mainTab === 'job'
                   ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
+                }`}
             >
               Link Kèo
             </button>
@@ -292,270 +311,306 @@ export default function Home() {
 
         {mainTab === 'home' && (
           <>
+
+
             {/* Mode Selector */}
             <div className="flex p-1 space-x-1 bg-gray-200/50 dark:bg-gray-800/50 rounded-xl max-w-md mx-auto mb-8">
-          <button
-            onClick={() => { setMode('classic'); setResult(null); }}
-            className={`flex-1 flex items-center justify-center space-x-2 py-2.5 text-sm font-medium rounded-lg transition-all ${mode === 'classic'
-              ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-          >
-            <Terminal className="w-4 h-4" />
-            <span>Classic Mode</span>
-          </button>
-          <button
-            onClick={() => { setMode('advance'); setResult(null); }}
-            className={`flex-1 flex items-center justify-center space-x-2 py-2.5 text-sm font-medium rounded-lg transition-all ${mode === 'advance'
-              ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-          >
-            <Settings2 className="w-4 h-4" />
-            <span>Advance Mode</span>
-          </button>
-        </div>
+              <button
+                onClick={() => { setMode('classic'); setResult(null); }}
+                className={`flex-1 flex items-center justify-center space-x-2 py-2.5 text-sm font-medium rounded-lg transition-all ${mode === 'classic'
+                  ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+              >
+                <Terminal className="w-4 h-4" />
+                <span>Classic Mode</span>
+              </button>
+              <button
+                onClick={() => { setMode('advance'); setResult(null); }}
+                className={`flex-1 flex items-center justify-center space-x-2 py-2.5 text-sm font-medium rounded-lg transition-all ${mode === 'advance'
+                  ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+              >
+                <Settings2 className="w-4 h-4" />
+                <span>Advance Mode</span>
+              </button>
+            </div>
 
-        <div className="max-w-2xl mx-auto space-y-6">
-          {/* Result Alert */}
-          {result && (
-            <div className={`p-4 rounded-xl border flex items-start space-x-4 animate-in fade-in slide-in-from-top-2 ${result.success
-              ? result.isDuplicate
-                ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'
-                : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'
-              : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-              }`}>
-              <div className="mt-0.5">
-                {!result.success ? <ShieldAlert className="w-5 h-5 text-red-600 dark:text-red-400" />
-                  : result.isDuplicate ? <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                    : <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                }
-              </div>
-              <div className="flex-1">
-                <p className={`font-medium ${!result.success ? 'text-red-800 dark:text-red-300'
-                  : result.isDuplicate ? 'text-amber-800 dark:text-amber-300'
-                    : 'text-emerald-800 dark:text-emerald-300'
+            <div className="max-w-2xl mx-auto space-y-6">
+              {/* Result Alert */}
+              {result && (
+                <div className={`p-4 rounded-xl border flex items-start space-x-4 animate-in fade-in slide-in-from-top-2 ${result.success
+                  ? result.isDuplicate
+                    ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'
+                    : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'
+                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
                   }`}>
-                  {result.message}
-                </p>
-
-                {result.smsbetStatus && (
-                  <div className="mt-3 text-sm">
-                    <span className="font-semibold text-gray-700 dark:text-gray-300">Trạng thái SMSBET: </span>
-                    <span className={`font-medium px-2 py-0.5 rounded border ${result.smsbetStatus === 'Sạch'
-                      ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800/50'
-                      : result.smsbetStatus === 'Trùng'
-                        ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800/50'
-                        : 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
-                      }`}>
-                      {result.smsbetStatus}
-                    </span>
-                    {result.smsbetDateAdded && (
-                      <span className="ml-2 text-gray-600 dark:text-gray-400">
-                        (Ngày thêm vào SMSBET: {result.smsbetDateAdded})
-                      </span>
-                    )}
+                  <div className="mt-0.5">
+                    {!result.success ? <ShieldAlert className="w-5 h-5 text-red-600 dark:text-red-400" />
+                      : result.isDuplicate ? <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                        : <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    }
                   </div>
-                )}
-                {result.allNotes !== undefined && (
-                  <div className="mt-3 text-sm">
-                    <div className="flex items-start">
-                      <span className="font-semibold text-gray-700 dark:text-gray-300 mt-1 mr-2">Đã note:</span>
-                      {isEditingNote ? (
-                        <div className="flex-1 flex flex-col space-y-2">
-                          <textarea
-                            className="w-full px-3 py-2 rounded-lg border border-blue-300 dark:border-blue-700 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 outline-none text-sm font-mono resize-y min-h-[60px]"
-                            value={editNoteText}
-                            onChange={(e) => setEditNoteText(e.target.value)}
-                          />
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={handleSaveNote}
-                              disabled={editNotePending}
-                              className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-xs font-medium hover:bg-blue-700 disabled:opacity-70 transition-colors cursor-pointer"
-                            >
-                              {editNotePending ? 'Đang lưu...' : 'Lưu'}
-                            </button>
-                            <button
-                              onClick={() => setIsEditingNote(false)}
-                              disabled={editNotePending}
-                              className="px-3 py-1.5 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-md text-xs font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors cursor-pointer"
-                            >
-                              Hủy
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex-1 flex items-center flex-wrap gap-2">
-                          <span className="text-gray-600 dark:text-gray-400 break-all bg-white/50 dark:bg-black/20 px-2 py-1 rounded border border-gray-200 dark:border-gray-700/50">
-                            {result.allNotes || '(Trống)'}
+                  <div className="flex-1">
+                    <p className={`font-medium ${!result.success ? 'text-red-800 dark:text-red-300'
+                      : result.isDuplicate ? 'text-amber-800 dark:text-amber-300'
+                        : 'text-emerald-800 dark:text-emerald-300'
+                      }`}>
+                      {result.message}
+                    </p>
+
+                    {result.smsbetStatus && (
+                      <div className="mt-3 text-sm">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">Trạng thái SMSBET: </span>
+                        <span className={`font-medium px-2 py-0.5 rounded border ${result.smsbetStatus === 'Sạch'
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800/50'
+                          : result.smsbetStatus === 'Trùng'
+                            ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800/50'
+                            : 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
+                          }`}>
+                          {result.smsbetStatus}
+                        </span>
+                        {result.smsbetDateAdded && (
+                          <span className="ml-2 text-gray-600 dark:text-gray-400">
+                            (Ngày thêm vào SMSBET: {result.smsbetDateAdded})
                           </span>
-                          {result.ip && (
-                            <button
-                              onClick={() => {
-                                setEditNoteText(result.allNotes || '');
-                                setIsEditingNote(true);
-                              }}
-                              className="text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors cursor-pointer"
-                              title="Chỉnh sửa ghi chú"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
+                        )}
+                      </div>
+                    )}
+                    {result.allNotes !== undefined && (
+                      <div className="mt-3 text-sm">
+                        <div className="flex items-start">
+                          <span className="font-semibold text-gray-700 dark:text-gray-300 mt-1 mr-2">Đã note:</span>
+                          {isEditingNote ? (
+                            <div className="flex-1 flex flex-col space-y-2">
+                              <textarea
+                                className="w-full px-3 py-2 rounded-lg border border-blue-300 dark:border-blue-700 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 outline-none text-sm font-mono resize-y min-h-[60px]"
+                                value={editNoteText}
+                                onChange={(e) => setEditNoteText(e.target.value)}
+                              />
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={handleSaveNote}
+                                  disabled={editNotePending}
+                                  className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-xs font-medium hover:bg-blue-700 disabled:opacity-70 transition-colors cursor-pointer"
+                                >
+                                  {editNotePending ? 'Đang lưu...' : 'Lưu'}
+                                </button>
+                                <button
+                                  onClick={() => setIsEditingNote(false)}
+                                  disabled={editNotePending}
+                                  className="px-3 py-1.5 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-md text-xs font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors cursor-pointer"
+                                >
+                                  Hủy
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex-1 flex items-center flex-wrap gap-2">
+                              <span className="text-gray-600 dark:text-gray-400 break-all bg-white/50 dark:bg-black/20 px-2 py-1 rounded border border-gray-200 dark:border-gray-700/50">
+                                {result.allNotes || '(Trống)'}
+                              </span>
+                              {result.ip && (
+                                <button
+                                  onClick={() => {
+                                    setEditNoteText(result.allNotes || '');
+                                    setIsEditingNote(true);
+                                  }}
+                                  className="text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                                  title="Chỉnh sửa ghi chú"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {result.addedTime && (
-                  <div className="mt-2 space-y-1">
-                    <p className="text-sm flex items-center text-gray-600 dark:text-gray-400">
-                      <Calendar className="w-3.5 h-3.5 mr-1" />
-                      Ngày thêm: {new Date(result.addedTime).toLocaleString('vi-VN')}
-                    </p>
-                    {result.updatedTime && (
-                      <p className="text-sm flex items-center text-gray-600 dark:text-gray-400">
-                        <Calendar className="w-3.5 h-3.5 mr-1" />
-                        Ngày cập nhật gần nhất: {new Date(result.updatedTime).toLocaleString('vi-VN')}
-                      </p>
+                      </div>
+                    )}
+                    {result.addedTime && (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-sm flex items-center text-gray-600 dark:text-gray-400">
+                          <Calendar className="w-3.5 h-3.5 mr-1" />
+                          Ngày thêm: {new Date(result.addedTime).toLocaleString('vi-VN')}
+                        </p>
+                        {result.updatedTime && (
+                          <p className="text-sm flex items-center text-gray-600 dark:text-gray-400">
+                            <Calendar className="w-3.5 h-3.5 mr-1" />
+                            Ngày cập nhật gần nhất: {new Date(result.updatedTime).toLocaleString('vi-VN')}
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Form Classic */}
-          {mode === 'classic' && (
-            <div
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleClassicSubmit();
-                }
-              }}
-              className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700"
-            >
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="classicInput" className="block text-sm font-medium mb-2">
-                    Nhập IP và Ghi chú (cách nhau bởi dấu cách)
-                  </label>
-                  <input
-                    id="classicInput"
-                    type="text"
-                    value={classicInput}
-                    onChange={(e) => setClassicInput(e.target.value)}
-                    placeholder="Ví dụ: 192.168.1.1 sc88"
-                    required
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  />
-                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    Hệ thống sẽ tự động tách chuỗi đầu tiên làm IP, phần còn lại làm Ghi chú.
-                  </p>
                 </div>
+              )}
 
-                <button
-                  onClick={(e) => { e.preventDefault(); handleClassicSubmit(); }}
-                  disabled={pending}
-                  className="cursor-pointer w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors disabled:opacity-70 flex justify-center"
-                >
-                  {pending ? 'Đang xử lý...' : 'Kiểm tra'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Form Advance */}
-          {mode === 'advance' && (
-            <div className="space-y-6">
-              <div
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAdvanceSubmit();
-                  }
-                }}
-                className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700"
-              >
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="advIp" className="block text-sm font-medium mb-2">Địa chỉ IP</label>
-                    <input
-                      id="advIp"
-                      type="text"
-                      value={advIp}
-                      onChange={(e) => setAdvIp(e.target.value)}
-                      placeholder="Ví dụ: 192.168.1.1"
-                      required
-                      pattern="^(\d{1,3}\.){3}\d{1,3}$"
-                      title="Vui lòng nhập đúng định dạng IPv4"
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="advNote" className="block text-sm font-medium mb-2">Chọn Ghi Chú</label>
-                    <select
-                      id="advNote"
-                      value={advNote}
-                      onChange={(e) => setAdvNote(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    >
-                      {commonNotes.length === 0 ? (
-                        <option value="">Chưa có ghi chú thường dùng</option>
-                      ) : (
-                        commonNotes.map((n) => (
-                          <option key={n.note} value={n.note}>{n.note}</option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-
-                  <button
-                    onClick={(e) => { e.preventDefault(); handleAdvanceSubmit(); }}
-                    disabled={pending || !advNote}
-                    className="cursor-pointer w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors disabled:opacity-70 flex justify-center"
-                  >
-                    {pending ? 'Đang xử lý...' : 'Kiểm tra'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Add common note form */}
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                <h3 className="text-sm font-medium mb-4 flex items-center">
-                  <Plus className="w-4 h-4 mr-1 text-blue-500" />
-                  Thêm ghi chú thường dùng mới
-                </h3>
+              {/* Form Classic */}
+              {mode === 'classic' && (
                 <div
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
-                      handleAddCommonNote();
+                      handleClassicSubmit();
                     }
                   }}
-                  className="flex space-x-2"
+                  className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700"
                 >
-                  <input
-                    type="text"
-                    value={newCommonNote}
-                    onChange={(e) => setNewCommonNote(e.target.value)}
-                    placeholder="Ghi chú mới..."
-                    required
-                    className="flex-1 px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <button
-                    onClick={(e) => { e.preventDefault(); handleAddCommonNote(); }}
-                    className="cursor-pointer px-4 py-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm font-medium rounded-lg hover:bg-gray-800 dark:hover:bg-white transition-colors"
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="classicInput" className="block text-sm font-medium mb-2">
+                        Nhập IP và Ghi chú (cách nhau bởi dấu cách)
+                      </label>
+                      <input
+                        id="classicInput"
+                        type="text"
+                        value={classicInput}
+                        onChange={(e) => setClassicInput(e.target.value)}
+                        placeholder="Ví dụ: 192.168.1.1 sc88"
+                        required
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      />
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        Hệ thống sẽ tự động tách chuỗi đầu tiên làm IP, phần còn lại làm Ghi chú.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={(e) => { e.preventDefault(); handleClassicSubmit(); }}
+                      disabled={pending}
+                      className="cursor-pointer w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors disabled:opacity-70 flex justify-center"
+                    >
+                      {pending ? 'Đang xử lý...' : 'Kiểm tra'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Form Advance */}
+              {mode === 'advance' && (
+                <div className="space-y-6">
+                  <div
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAdvanceSubmit();
+                      }
+                    }}
+                    className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700"
                   >
-                    Thêm
-                  </button>
+                    <div className="space-y-4">
+                      <div>
+                        <label htmlFor="advIp" className="block text-sm font-medium mb-2">Địa chỉ IP</label>
+                        <input
+                          id="advIp"
+                          type="text"
+                          value={advIp}
+                          onChange={(e) => setAdvIp(e.target.value)}
+                          placeholder="Ví dụ: 192.168.1.1"
+                          required
+                          pattern="^(\d{1,3}\.){3}\d{1,3}$"
+                          title="Vui lòng nhập đúng định dạng IPv4"
+                          className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="advNote" className="block text-sm font-medium mb-2">Chọn Ghi Chú</label>
+                        <select
+                          id="advNote"
+                          value={advNote}
+                          onChange={(e) => setAdvNote(e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        >
+                          {commonNotes.length === 0 ? (
+                            <option value="">Chưa có ghi chú thường dùng</option>
+                          ) : (
+                            commonNotes.map((n) => (
+                              <option key={n.note} value={n.note}>{n.note}</option>
+                            ))
+                          )}
+                        </select>
+                      </div>
+
+                      <button
+                        onClick={(e) => { e.preventDefault(); handleAdvanceSubmit(); }}
+                        disabled={pending || !advNote}
+                        className="cursor-pointer w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors disabled:opacity-70 flex justify-center"
+                      >
+                        {pending ? 'Đang xử lý...' : 'Kiểm tra'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Add common note form */}
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <h3 className="text-sm font-medium mb-4 flex items-center">
+                      <Plus className="w-4 h-4 mr-1 text-blue-500" />
+                      Thêm ghi chú thường dùng mới
+                    </h3>
+                    <div
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddCommonNote();
+                        }
+                      }}
+                      className="flex space-x-2"
+                    >
+                      <input
+                        type="text"
+                        value={newCommonNote}
+                        onChange={(e) => setNewCommonNote(e.target.value)}
+                        placeholder="Ghi chú mới..."
+                        required
+                        className="flex-1 px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <button
+                        onClick={(e) => { e.preventDefault(); handleAddCommonNote(); }}
+                        className="cursor-pointer px-4 py-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm font-medium rounded-lg hover:bg-gray-800 dark:hover:bg-white transition-colors"
+                      >
+                        Thêm
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Selected Jobs Display */}
+            {selectedJobs.length > 0 && (
+              <div className="mb-8">
+                <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Kèo Đang Chọn</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {jobs.filter(j => selectedJobs.includes(j.id)).map(job => (
+                    <div key={job.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col">
+                      <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
+                        <h3 className="font-bold text-lg leading-tight truncate" title={job.name}>{job.name}</h3>
+                        <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded-full dark:bg-blue-900/30 dark:text-blue-300 whitespace-nowrap ml-2">
+                          {job.links.split('\n').filter(l => l.trim()).length} links
+                        </span>
+                      </div>
+                      <div className="p-4 flex-1 overflow-y-auto max-h-56 space-y-2">
+                        {job.links.split('\n').filter(l => l.trim()).map((link, i) => (
+                          <div key={i} className="flex items-center justify-between bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                            <span className="text-xs font-mono truncate mr-2 text-gray-700 dark:text-gray-300" title={link}>
+                              {link}
+                            </span>
+                            <button
+                              onClick={() => handleCopy(link)}
+                              className="text-xs px-2.5 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer text-gray-600 dark:text-gray-300 flex-shrink-0 font-medium"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-          )}
-          </div>
+            )}
           </>
         )}
 
@@ -667,7 +722,7 @@ export default function Home() {
                     </table>
                   </div>
                 </div>
-                
+
                 {/* Lỗi Table (nếu có) */}
                 {filterResults.some(r => r.status === 'Lỗi') && (
                   <div className="col-span-1 md:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
@@ -740,18 +795,32 @@ export default function Home() {
               {jobs.map(job => (
                 <div key={job.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col">
                   <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
-                    <div>
-                      <h3 className="font-bold text-lg leading-tight truncate" title={job.name}>{job.name}</h3>
-                      <p className="text-xs text-gray-500 mt-0.5">{new Date(job.created_at).toLocaleString('vi-VN')}</p>
+                    <div className="flex items-center min-w-0 flex-1">
+                      <input
+                        type="checkbox"
+                        checked={selectedJobs.includes(job.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedJobs([...selectedJobs, job.id])
+                          } else {
+                            setSelectedJobs(selectedJobs.filter(id => id !== job.id))
+                          }
+                        }}
+                        className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 cursor-pointer mr-3 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-lg leading-tight truncate" title={job.name}>{job.name}</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">{new Date(job.created_at).toLocaleString('vi-VN')}</p>
+                      </div>
                     </div>
-                    <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded-full dark:bg-blue-900/30 dark:text-blue-300 whitespace-nowrap ml-2">
+                    <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded-full dark:bg-blue-900/30 dark:text-blue-300 whitespace-nowrap ml-2 shrink-0">
                       {job.links.split('\n').filter(l => l.trim()).length} links
                     </span>
                   </div>
-                  
+
                   {editingJobId === job.id ? (
                     <div className="p-4 flex-1">
-                      <textarea 
+                      <textarea
                         className="w-full h-48 p-3 text-xs font-mono bg-white dark:bg-gray-900 border border-blue-300 dark:border-blue-700 rounded-lg focus:outline-none resize-none cursor-text focus:ring-2 focus:ring-blue-500"
                         value={editingLinks}
                         onChange={(e) => setEditingLinks(e.target.value)}
@@ -765,7 +834,7 @@ export default function Home() {
                           <span className="text-xs font-mono truncate mr-2 text-gray-700 dark:text-gray-300" title={link}>
                             {link}
                           </span>
-                          <button 
+                          <button
                             onClick={() => handleCopy(link)}
                             className="text-xs px-2.5 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer text-gray-600 dark:text-gray-300 flex-shrink-0 font-medium"
                           >
@@ -779,13 +848,13 @@ export default function Home() {
                   <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700 flex space-x-2">
                     {editingJobId === job.id ? (
                       <>
-                        <button 
+                        <button
                           onClick={() => handleSaveJob(job.id)}
                           className="cursor-pointer flex-1 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 rounded-lg text-sm font-medium transition-colors"
                         >
                           Lưu
                         </button>
-                        <button 
+                        <button
                           onClick={() => setEditingJobId(null)}
                           className="cursor-pointer px-4 py-2 bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
                         >
@@ -794,13 +863,13 @@ export default function Home() {
                       </>
                     ) : (
                       <>
-                        <button 
+                        <button
                           onClick={() => { setEditingJobId(job.id); setEditingLinks(job.links); }}
                           className="cursor-pointer flex-1 py-2 bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 rounded-lg text-sm font-medium transition-colors"
                         >
                           Chỉnh sửa
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDeleteJob(job.id)}
                           className="cursor-pointer px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 rounded-lg text-sm font-medium transition-colors"
                         >
@@ -811,7 +880,7 @@ export default function Home() {
                   </div>
                 </div>
               ))}
-              
+
               {jobs.length === 0 && (
                 <div className="col-span-full py-12 text-center border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl">
                   <p className="text-gray-500 dark:text-gray-400">Chưa có kèo nào. Hãy tạo kèo mới ở trên!</p>
@@ -825,22 +894,21 @@ export default function Home() {
 
       {/* Overlay */}
       {isDrawerOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-opacity"
           onClick={() => setIsDrawerOpen(false)}
         />
       )}
 
       {/* Drawer */}
-      <div 
-        className={`fixed inset-y-0 right-0 w-80 bg-white dark:bg-gray-800 shadow-xl z-50 transform transition-transform duration-300 ease-in-out border-l border-gray-200 dark:border-gray-700 flex flex-col ${
-          isDrawerOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+      <div
+        className={`fixed inset-y-0 right-0 w-80 bg-white dark:bg-gray-800 shadow-xl z-50 transform transition-transform duration-300 ease-in-out border-l border-gray-200 dark:border-gray-700 flex flex-col ${isDrawerOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
       >
         <div className="px-4 h-16 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 shrink-0">
           <h2 className="font-semibold text-lg text-gray-900 dark:text-white">IP Gần Đây</h2>
           <div className="flex items-center space-x-1">
-            <button 
+            <button
               onClick={fetchRecent}
               disabled={loadingRecent}
               className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer disabled:opacity-50"
@@ -848,7 +916,7 @@ export default function Home() {
             >
               <RefreshCw className={`w-4 h-4 ${loadingRecent ? 'animate-spin' : ''}`} />
             </button>
-            <button 
+            <button
               onClick={() => setIsDrawerOpen(false)}
               className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
             >
